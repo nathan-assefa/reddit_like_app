@@ -33,6 +33,13 @@ from .models import(
     Notifications
 )
 
+import random
+
+from .notification_content import(
+    comment_notification_sentences,
+    post_notification_sentences
+)
+
 
 class CommunityList(APIView):
     ''' Defining get and post request '''
@@ -97,9 +104,9 @@ class PostList(APIView):
         serializer = PostSerialization(posts, many=True)
         return Response(serializer.data)
 
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
-        serializer = PostSerialization(data=request.data)
+        serializer = PostSerialization(data=request.data, context={'request': request})
         if serializer.is_valid():
             post = serializer.save()
 
@@ -111,17 +118,56 @@ class PostList(APIView):
 
             # Create a notification for each community member
             for member in community_members:
-                print("memberssss: ", member)
-                Notifications.objects.create(
-                    recipient=member,
-                    # The user who created the post
-                    sender=request.user,
-                    notification_type="NewPost",
-                    content=f"A new post was created in {community.name}: '{post.title}'"
-                )
+                # Make sure the creator of the post does not receive the notification
+                if member != request.user:
+                    # Randomly select a notification sentence
+                    random_sentence = random.choice(post_notification_sentences)
+
+                    # Replace placeholders with actual values
+                    notification_content = random_sentence.format(
+                        recipient=member.username.capitalize(),
+                        sender=request.user.username.capitalize(),
+                        community=community.name.upper(),
+                        post_title=post.title,
+                    )
+
+                    Notifications.objects.create(
+                        recipient=member,
+                        sender=request.user,
+                        notification_type="NewPost",
+                        content=notification_content,
+                    )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    '''
+    def post(self, request, format=None):
+        serializer = PostSerialization(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            post = serializer.save()
+
+            # Get the community for this post
+            community = post.community
+
+            # Get all members of the community
+            community_members = community.members.all()
+
+
+            # Create a notification for each community member
+            for member in community_members:
+                # Make sure the creator of the post does not receive the notification
+                if member != request.user:
+                    Notifications.objects.create(
+                        recipient=member,
+                        # The user who created the post
+                        sender=request.user,
+                        notification_type="NewPost",
+                        content=f"{member} A new post was created in {community.name.upper()} community: '{post.title}'"
+                    )
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        '''
 
 class PostDetail(APIView):
     ''' implementing get, put, and delete request '''
@@ -170,13 +216,74 @@ class CommentList(APIView):
         serializer = CommentSerialization(comments, many=True)
         return Response(serializer.data)
 
-
     def post(self, request, format=None):
-        serializer = CommentSerialization(data=request.data)
+        serializer = CommentSerialization(data=request.data, context={'request': request})
+
         if serializer.is_valid():
-            serializer.save()
+            comment = serializer.save()
+
+            # Get the post associated with this comment
+            post = comment.post
+
+            # Get the community for this post
+            community = post.community
+
+            # Get all members of the community
+            community_members = community.members.all()
+
+            # Create a notification for each community member
+            for member in community_members:
+                # Ensure the commenter is not the same as the community member
+                if member != request.user:
+                    # Choose a random notification sentence
+                    notification_content = random.choice(comment_notification_sentences).format(
+                        recipient=member.username.capitalize(),
+                        sender=request.user.username.capitalize(),
+                        community=community.name.upper(),
+                        post_title=post.title.capitalize()
+                    )
+                    Notifications.objects.create(
+                        recipient=member,
+                        sender=request.user,
+                        notification_type="NewComment",
+                        content=notification_content
+                    )
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    '''
+    def post(self, request, format=None):
+        serializer = CommentSerialization(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            comment = serializer.save()
+
+            # Get the post associated with this comment
+            post = comment.post
+
+            # Get the community for this post
+            community = post.community
+
+            # Get all members of the community
+            community_members = community.members.all()
+
+            # Create a notification for each community member
+            for member in community_members:
+                # Ensure the commenter is not the same as the community member
+                if member != request.user:
+                    Notifications.objects.create(
+                        recipient=member,
+                        sender=request.user,
+                        notification_type="NewComment",
+                        content=f"{member} a new comment was made on a post in {community.name}: '{post.title}'"
+                    )
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    '''
 
 
 class CommentDetail(APIView):
@@ -430,16 +537,18 @@ class SendMessageView(CreateAPIView):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
 
-    # def perform_create(self, serializer):
-    #     recipient_id = serializer.validated_data['recipient'].id
+    def perform_create(self, serializer):
+        recipient_id = serializer.validated_data['recipient'].id
 
-    #     # Check if the recipient is the same as the sender
-    #     if recipient_id == self.request.user.id:
-    #         return Response(
-    #             {'error': 'You cannot send a message to yourself.'},
-    #             status=status.HTTP_400_BAD_REQUEST
-    #             )
-    #     serializer.save(sender=self.request.user)
+        print("sender: ", self.request.user.username)
+        print("recipient: ", serializer.validated_data['recipient'].username)
+        # Check if the recipient is the same as the sender
+        if recipient_id == self.request.user.id:
+            return Response(
+                {'error': 'You cannot send a message to yourself.'},
+                status=status.HTTP_400_BAD_REQUEST
+                )
+        serializer.save(sender=self.request.user)
 
 class GetUserMessagesView(ListAPIView):
     serializer_class = MessageSerializer
@@ -486,13 +595,20 @@ class MarkMessageAsReadView(CreateAPIView):
         message.is_read = True
         message.save()
 
-'''
+
 class ClearUnreadMessagesCount(APIView):
     def post(self, request):
         # Get the authenticated user or user ID from the session
-        user = request.user  # Assuming user is authenticated
+        user = request.user
         # Update the unread_messages_count to zero
-        user.profile.unread_messages_count = 0  # Assuming you have a Profile model
+        user.profile.unread_messages_count = 0
         user.profile.save()
         return Response({'message': 'Unread message count cleared.'}, status=status.HTTP_200_OK)
-'''
+
+
+class ClearUnreadNotificationsCount(APIView):
+    def post(self, request):
+        user = request.user
+        user.profile.unread_notifications_count = 0
+        user.profile.save()
+        return Response({'message': 'Unread notification count cleared.'}, status=status.HTTP_200_OK)

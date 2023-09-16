@@ -30,6 +30,7 @@ class CommunityMembershipSerialzer(ModelSerializer):
 
 class PostSerialization(ModelSerializer):
     ''' Serializing post object '''
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     upvoted_by = UserSerializer(many=True, read_only=True, required=False)
     downvoted_by = UserSerializer(many=True, read_only=True, required=False)
@@ -48,6 +49,7 @@ class PostLikeSerializer(ModelSerializer):
         fields = '__all__'
 
 class CommentSerialization(ModelSerializer):
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
     class Meta:
         model = Comment
         fields = '__all__'

@@ -131,6 +131,8 @@ class Profile(models.Model):
 
     unread_messages_count = models.IntegerField(default=0)
 
+    unread_notifications_count = models.IntegerField(default=0)
+
     def __str__(self):
         return self.user.username
 

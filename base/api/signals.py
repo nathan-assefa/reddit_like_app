@@ -21,6 +21,30 @@ def create_notification(sender, instance, created, notification_type, content_fn
         recipient = None
         content = content_fn(instance)
 
+        # Determine if the sender and recipient should be notified
+        should_notify = True
+
+        if sender in (PostLike, PostLove, PostUpvoted, PostDownvoted):
+            # If it's a Post reaction, set the recipient to the author of the post
+            recipient = instance.post.author
+            # Check if the author is the same as the sender (user liking their own post)
+            should_notify = instance.user != recipient
+
+        elif sender in (CommentLike, CommentLove, CommentUpvoted, CommentDownvoted):
+            # This is to handle comment reactions
+            recipient = instance.comment.author
+            # Check if the author is the same as the sender (user liking their own comment)
+            should_notify = instance.user != recipient
+
+        if should_notify and recipient:
+            Notifications.objects.create(
+                recipient=recipient,
+                sender=instance.user,
+                notification_type=notification_type,
+                content=content,
+            )
+
+        '''
         if sender == PostLike:
             # If it's a PostLike, set the recipient to the author of the post
             recipient = instance.post.author
@@ -50,6 +74,7 @@ def create_notification(sender, instance, created, notification_type, content_fn
                 notification_type=notification_type,
                 content=content,
             )
+        '''
 
 
 """ ****** This is to handle post reactions ******** """
@@ -143,4 +168,13 @@ def update_unread_message_count(sender, instance, created, **kwargs):
         # Increment the unread_messages_count for the recipient's profile
         recipient_profile = instance.recipient.profile
         recipient_profile.unread_messages_count += 1
+        recipient_profile.save()
+
+
+@receiver(post_save, sender=Notifications)
+def update_unread_notification_count(sender, instance, created, **kwargs):
+    if created:
+        print(instance.recipient.username)
+        recipient_profile = instance.recipient.profile
+        recipient_profile.unread_notifications_count += 1
         recipient_profile.save()

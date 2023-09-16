@@ -33,5 +33,8 @@ urlpatterns = [
 
     path('send_message/', views.SendMessageView.as_view(), name='send_message'),
     path('get-user-messages/<int:user_id>/', views.GetUserMessagesView.as_view(), name='get_user_messages'),
-    path('mark-message-as-read/<int:message_id>', views.MarkMessageAsReadView.as_view(), name='mark_message_as_read')
+    path('mark-message-as-read/<int:message_id>', views.MarkMessageAsReadView.as_view(), name='mark_message_as_read'),
+    path('clear-unread-messages-count/', views.ClearUnreadMessagesCount.as_view(), name='clear_unread_message_count'),
+
+    path('clear-unread-notifications/', views.ClearUnreadNotificationsCount.as_view(), name='clear_unread_notifications'),
 ]
