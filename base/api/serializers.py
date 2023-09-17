@@ -64,7 +64,6 @@ class BookMarksSerializer(ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    # sender = serializers.ReadOnlyField(source='sender.username')
     # recipient = UserSerializer(many=False)
 
     class Meta:

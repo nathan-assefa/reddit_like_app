@@ -104,7 +104,7 @@ class PostList(APIView):
         serializer = PostSerialization(posts, many=True)
         return Response(serializer.data)
 
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         serializer = PostSerialization(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -140,34 +140,7 @@ class PostList(APIView):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    '''
-    def post(self, request, format=None):
-        serializer = PostSerialization(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            post = serializer.save()
 
-            # Get the community for this post
-            community = post.community
-
-            # Get all members of the community
-            community_members = community.members.all()
-
-
-            # Create a notification for each community member
-            for member in community_members:
-                # Make sure the creator of the post does not receive the notification
-                if member != request.user:
-                    Notifications.objects.create(
-                        recipient=member,
-                        # The user who created the post
-                        sender=request.user,
-                        notification_type="NewPost",
-                        content=f"{member} A new post was created in {community.name.upper()} community: '{post.title}'"
-                    )
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        '''
 
 class PostDetail(APIView):
     ''' implementing get, put, and delete request '''
@@ -225,65 +198,56 @@ class CommentList(APIView):
             # Get the post associated with this comment
             post = comment.post
 
-            # Get the community for this post
-            community = post.community
+            # Check if this is a reply to an existing comment
+            if comment.parent_comment:
+                # This is a reply
+                parent_comment = comment.parent_comment
+                parent_comment_owner = parent_comment.author
 
-            # Get all members of the community
-            community_members = community.members.all()
+                # Notify the owner of the parent comment about the reply
+                Notifications.objects.create(
+                    recipient=parent_comment_owner,
+                    sender=request.user,
+                    notification_type="NewCommentReply",
+                    content=f'Your comment on "{post.title}" has a new reply by {request.user.username.capitalize()}. "{post.content}"'
+                )
 
-            # Create a notification for each community member
-            for member in community_members:
-                # Ensure the commenter is not the same as the community member
-                if member != request.user:
-                    # Choose a random notification sentence
-                    notification_content = random.choice(comment_notification_sentences).format(
-                        recipient=member.username.capitalize(),
-                        sender=request.user.username.capitalize(),
-                        community=community.name.upper(),
-                        post_title=post.title.capitalize()
-                    )
-                    Notifications.objects.create(
-                        recipient=member,
-                        sender=request.user,
-                        notification_type="NewComment",
-                        content=notification_content
-                    )
+            else:
+                # This is a new top-level comment
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+                # Get the community for this post
+                community = post.community
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Get all members of the community
+                community_members = community.members.all()
 
-    '''
-    def post(self, request, format=None):
-        serializer = CommentSerialization(data=request.data, context={'request': request})
+                # Create a notification for each community member
+                for member in community_members:
+                    # Ensure the commenter is not the same as the community member
+                    if member != request.user:
+                        # Choose a random notification sentence
+                        if member == post.author:
+                            # Customize the notification for the post owner
+                            notification_content = f'Your post has been commented by {request.user.username.capitalize()}. "{post.content}"'
+                        else:
+                            # Choose a random notification sentence for other community members
+                            notification_content = random.choice(comment_notification_sentences).format(
+                                recipient=member.username.capitalize(),
+                                sender=request.user.username.capitalize(),
+                                community=community.name.upper(),
+                                post_title=post.title.capitalize()
+                            )
 
-        if serializer.is_valid():
-            comment = serializer.save()
-
-            # Get the post associated with this comment
-            post = comment.post
-
-            # Get the community for this post
-            community = post.community
-
-            # Get all members of the community
-            community_members = community.members.all()
-
-            # Create a notification for each community member
-            for member in community_members:
-                # Ensure the commenter is not the same as the community member
-                if member != request.user:
-                    Notifications.objects.create(
-                        recipient=member,
-                        sender=request.user,
-                        notification_type="NewComment",
-                        content=f"{member} a new comment was made on a post in {community.name}: '{post.title}'"
-                    )
+                        Notifications.objects.create(
+                            recipient=member,
+                            sender=request.user,
+                            notification_type="NewComment",
+                            content=notification_content
+                        )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    '''
 
 
 class CommentDetail(APIView):
@@ -403,16 +367,16 @@ class LovePost(APIView):
         user = request.user
         post = get_object_or_404(Post, pk=post_id)
 
-        existing_like = PostLove.objects.filter(user=user, post=post).first()
+        existing_love = PostLove.objects.filter(user=user, post=post).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_love:
+            existing_love.delete()
+            loved = False
         else:
             PostLove.objects.create(user=user, post=post)
-            liked = True
+            loved = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'loved': loved}, status=status.HTTP_200_OK)
 
 class UpvotePost(APIView):
 
@@ -422,16 +386,16 @@ class UpvotePost(APIView):
         user = request.user
         post = get_object_or_404(Post, pk=post_id)
 
-        existing_like = PostUpvoted.objects.filter(user=user, post=post).first()
+        existing_upvote = PostUpvoted.objects.filter(user=user, post=post).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_upvote:
+            existing_upvote.delete()
+            upvoted = False
         else:
             PostUpvoted.objects.create(user=user, post=post)
-            liked = True
+            upvoted = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'upvoted': upvoted}, status=status.HTTP_200_OK)
 
 class DownvotePost(APIView):
 
@@ -441,16 +405,16 @@ class DownvotePost(APIView):
         user = request.user
         post = get_object_or_404(Post, pk=post_id)
 
-        existing_like = PostDownvoted.objects.filter(user=user, post=post).first()
+        existing_downvote = PostDownvoted.objects.filter(user=user, post=post).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_downvote:
+            existing_downvote.delete()
+            downvoted = False
         else:
             PostDownvoted.objects.create(user=user, post=post)
-            liked = True
+            downvoted = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'downvoted': downvoted}, status=status.HTTP_200_OK)
 
 
 """ Handling comment reactions """
@@ -481,16 +445,16 @@ class LoveComment(APIView):
         user = request.user
 
         comment = get_object_or_404(Comment, pk=comment_id)
-        existing_like = CommentLove.objects.filter(user=user, comment=comment).first()
+        existing_love = CommentLove.objects.filter(user=user, comment=comment).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_love:
+            existing_love.delete()
+            loved = False
         else:
             CommentLove.objects.create(user=user, comment=comment)
-            liked = True
+            loved = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'loved': loved}, status=status.HTTP_200_OK)
 
 class UpvoteComment(APIView):
 
@@ -500,16 +464,16 @@ class UpvoteComment(APIView):
         user = request.user
 
         comment = get_object_or_404(Comment, pk=comment_id)
-        existing_like = CommentUpvoted.objects.filter(user=user, comment=comment).first()
+        existing_upvote = CommentUpvoted.objects.filter(user=user, comment=comment).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_upvote:
+            existing_upvote.delete()
+            upvoted = False
         else:
             CommentUpvoted.objects.create(user=user, comment=comment)
-            liked = True
+            upvoted = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'upvoted': upvoted}, status=status.HTTP_200_OK)
 
 class DownvoteComment(APIView):
 
@@ -519,16 +483,16 @@ class DownvoteComment(APIView):
         user = request.user
 
         comment = get_object_or_404(Comment, pk=comment_id)
-        existing_like = CommentDownvoted.objects.filter(user=user, comment=comment).first()
+        existing_downvote = CommentDownvoted.objects.filter(user=user, comment=comment).first()
 
-        if existing_like:
-            existing_like.delete()
-            liked = False
+        if existing_downvote:
+            existing_downvote.delete()
+            downvoted = False
         else:
             CommentDownvoted.objects.create(user=user, comment=comment)
-            liked = True
+            downvoted = True
 
-        return Response({'liked': liked}, status=status.HTTP_200_OK)
+        return Response({'downvoted': downvoted}, status=status.HTTP_200_OK)
 
 
 """ Handling users messaging """
