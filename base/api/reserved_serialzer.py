@@ -27,20 +27,18 @@ class CommunitySerializer(ModelSerializer):
 
 
 class CommunityMembershipSerialzer(ModelSerializer):
-    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
     class Meta:
         model = Community
         fields = "__all__"
 
 
 class CommentSerialization(ModelSerializer):
-    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
+    # author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    # Added
+    # post = PostSerialization(many=False, required=False)
     class Meta:
         model = Comment
         fields = '__all__'
-        ordering = ['-created_at']
 
 
 class PostSerialization(ModelSerializer):

@@ -13,15 +13,18 @@ class Community(models.Model):
     created_at = models.DateTimeField(auto_now=True)
     updated_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=255)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
+    # owner = models.ForeignKey(
+    #     User, on_delete=models.CASCADE, related_name='communities_owened'
+    # )
 
     members = models.ManyToManyField(
         User, through='CommunityMembership', related_name='communities_joined'
-        )
+    )
 
     moderators = models.ManyToManyField(
         User, related_name='communities_moderated', blank=True
-        )
+    )
 
     def __str__(self):
         return self.name
@@ -46,31 +49,31 @@ class Post(models.Model):
 
     community = models.ForeignKey(
         Community, on_delete=models.CASCADE, related_name='posts'
-        )
+    )
 
     author = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='posts_authored'
-        )
+    )
 
     upvoted_by = models.ManyToManyField(
         User, through="PostUpvoted", related_name='upvoted_posts', blank=True
-        )
+    )
 
     downvoted_by = models.ManyToManyField(
         User, through="PostDownvoted", related_name='downvoted_posts', blank=True
-        )
+    )
 
     bookmarks = models.ManyToManyField(
         User, related_name='bookmarked_posts', blank=True
-        )
+    )
 
     liked_by = models.ManyToManyField(
         User, through='PostLike', related_name='liked_posts', blank=True
-        )
+    )
 
     loved_by = models.ManyToManyField(
         User, through='PostLove', related_name='loved_posts', blank=True
-        )
+    )
 
     def __str__(self):
         return self.title
@@ -83,45 +86,54 @@ class Comment(models.Model):
 
     post = models.ForeignKey(
         Post, on_delete=models.CASCADE, related_name='comments'
-        )
+    )
 
     author = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='comments_authored'
-        )
+    )
 
     # Self-referential many-to-one relationship for parent comment (if a reply)
     parent_comment = models.ForeignKey(
         'self', on_delete=models.CASCADE, null=True, blank=True
-        )
+    )
 
     upvoted_by = models.ManyToManyField(
         User, through="CommentUpvoted", related_name='upvoted_comments', blank=True
-        )
+    )
 
     downvoted_by = models.ManyToManyField(
         User, through="CommentDownvoted", related_name='downvoted_comments', blank=True
-        )
+    )
 
     likes = models.ManyToManyField(
         User, through='CommentLike', related_name='liked_comments', blank=True
-        )
+    )
 
     loves = models.ManyToManyField(
         User, through='CommentLove', related_name='loved_comments', blank=True
-        )
+    )
 
     def __str__(self):
         return self.content
+    # def __str__(self):
+    #     if self.parent_comment is None:
+    #         # This is a top-level comment
+    #         related_comments = self.post.comments.all()
+    #         return f"Comment by {self.author} on Post: {self.post}, Total Comments: {related_comments.count()}"
+    #     else:
+    #         # This is a reply to another comment
+    #         return f"Reply by {self.author} on Post: {self.post}"
 
 
 class Profile(models.Model):
     created_at = models.DateTimeField(auto_now=True)
     updated_at = models.DateTimeField(auto_now_add=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='profile')
 
     profile_picture = models.ImageField(
         upload_to='profile_pictures/', blank=True, null=True
-        )
+    )
 
     bio = models.TextField(null=True, blank=True)
     website = models.URLField(max_length=200, blank=True, null=True)
@@ -143,11 +155,11 @@ class Messages(models.Model):
 
     sender = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='sent_messages'
-        )
+    )
 
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='received_messages'
-        )
+    )
 
     # subject = models.CharField(max_length=255)
     content = models.TextField()
@@ -164,12 +176,12 @@ class Notifications(models.Model):
 
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='notifications_received'
-        )
+    )
 
     sender = models.ForeignKey(
         User, on_delete=models.CASCADE, null=True,
         blank=True, related_name='notifications_sent'
-        )
+    )
 
     notification_type = models.CharField(max_length=255)
     content = models.TextField()
@@ -186,11 +198,11 @@ class BookMarks(models.Model):
 
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='user_bookmarks'
-        )
+    )
 
     post = models.ForeignKey(
         Post, on_delete=models.CASCADE, related_name='post_bookmarks'
-        )
+    )
 
     timestamp = models.DateTimeField(auto_now_add=True)
 

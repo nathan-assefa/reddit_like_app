@@ -1,38 +1,25 @@
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import permissions
 from django.http import Http404
 from rest_framework.views import APIView
-from rest_framework.generics import CreateAPIView, ListAPIView, ListCreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
 from django.contrib.auth.models import User
 
-from base.api.Custom_views.community import (
-    CommunityList,
-    CommunityDetail,
-)
-
-from base.api.Custom_views.post import (
-    CommunityPostList,
-    PostDetail,
-    PostList
-)
-
-from base.api.Custom_views.comment import (
-    CommentList,
-    CommentDetail
-)
-
 from .serializers import (
+    CommunitySerializer,
+    PostSerialization,
+    CommentSerialization,
     BookMarksSerializer,
     MessageSerializer,
     MarkMessageAsReadSerializer
 )
 
 from .models import (
+    Community,
     Comment,
     BookMarks,
     Messages,
@@ -45,8 +32,15 @@ from .models import (
     PostLove,
     PostUpvoted,
     PostDownvoted,
+    Notifications
 )
 
+import random
+
+from .Custom_views.notification_content import (
+    comment_notification_sentences,
+    post_notification_sentences
+)
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -65,6 +59,261 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+
+
+class CommunityList(APIView):
+    ''' Defining get and post request '''
+
+    def get(self, request, format=None):
+        user = request.user
+        print("User:", user.id)
+
+        communities = Community.objects.all()
+        serializer = CommunitySerializer(communities, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, format=None):
+        serializer = CommunitySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CommunityDetail(APIView):
+    def get_object(self, pk):
+        try:
+            return Community.objects.get(id=pk)
+        except:
+            raise Http404
+
+    def get(self, request, pk, format=False):
+        community = self.get_object(pk)
+        serializer = CommunitySerializer(community)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        community = self.get_object(pk)
+        serializer = CommunitySerializer(community, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, format=None):
+        community = self.get_object(pk)
+        serializer = CommunitySerializer(
+            community, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=False):
+        community = self.get_object(pk)
+
+        community.delete()
+
+        return Response('community deleted')
+
+
+class PostList(APIView):
+    ''' implementing get and post request '''
+
+    def get(self, request, format=None):
+        posts = Post.objects.all()
+        serializer = PostSerialization(posts, many=True)
+        return Response(serializer.data)
+
+    # permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        serializer = PostSerialization(
+            data=request.data, context={'request': request})
+        if serializer.is_valid():
+            post = serializer.save()
+
+            # Get the community for this post
+            community = post.community
+
+            # Get all members of the community
+            community_members = community.members.all()
+
+            # Create a notification for each community member
+            for member in community_members:
+                # Make sure the creator of the post does not receive the notification
+                if member != request.user:
+                    # Randomly select a notification sentence
+                    random_sentence = random.choice(
+                        post_notification_sentences)
+
+                    # Replace placeholders with actual values
+                    notification_content = random_sentence.format(
+                        recipient=member.username.capitalize(),
+                        sender=request.user.username.capitalize(),
+                        community=community.name.upper(),
+                        post_title=post.title,
+                    )
+
+                    Notifications.objects.create(
+                        recipient=member,
+                        sender=request.user,
+                        notification_type="NewPost",
+                        content=notification_content,
+                    )
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PostDetail(APIView):
+    ''' implementing get, put, and delete request '''
+
+    def get_object(self, pk):
+        try:
+            return Post.objects.get(id=pk)
+        except:
+            raise Http404
+
+    def get(self, request, pk, format=False):
+        post = self.get_object(pk)
+        serializer = PostSerialization(post)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        post = self.get_object(pk)
+        serializer = PostSerialization(post, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, format=None):
+        post = self.get_object(pk)
+        serializer = PostSerialization(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=False):
+        post = self.get_object(pk)
+
+        post.delete()
+
+        return Response('community deleted')
+
+
+class CommentList(APIView):
+    ''' implementing get and post request '''
+
+    def get(self, request, format=None):
+        comments = Comment.objects.all()
+        serializer = CommentSerialization(comments, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, format=None):
+        serializer = CommentSerialization(
+            data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            comment = serializer.save()
+
+            # Get the post associated with this comment
+            post = comment.post
+
+            # Check if this is a reply to an existing comment
+            if comment.parent_comment:
+                # This is a reply
+                parent_comment = comment.parent_comment
+                parent_comment_owner = parent_comment.author
+
+                # Notify the owner of the parent comment about the reply
+                Notifications.objects.create(
+                    recipient=parent_comment_owner,
+                    sender=request.user,
+                    notification_type="NewCommentReply",
+                    content=f'Your comment on "{post.title}" has a new reply by {request.user.username.capitalize()}. "{post.content}"'
+                )
+
+            else:
+                # This is a new top-level comment
+
+                # Get the community for this post
+                community = post.community
+
+                # Get all members of the community
+                community_members = community.members.all()
+
+                # Create a notification for each community member
+                for member in community_members:
+                    # Ensure the commenter is not the same as the community member
+                    if member != request.user:
+                        # Choose a random notification sentence
+                        if member == post.author:
+                            # Customize the notification for the post owner
+                            notification_content = f'Your post has been commented by {request.user.username.capitalize()}. "{post.content}"'
+                        else:
+                            # Choose a random notification sentence for other community members
+                            notification_content = random.choice(comment_notification_sentences).format(
+                                recipient=member.username.capitalize(),
+                                sender=request.user.username.capitalize(),
+                                community=community.name.upper(),
+                                post_title=post.title.capitalize()
+                            )
+
+                        Notifications.objects.create(
+                            recipient=member,
+                            sender=request.user,
+                            notification_type="NewComment",
+                            content=notification_content
+                        )
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CommentDetail(APIView):
+    ''' implementing get, put, and delete request '''
+
+    def get_object(self, pk):
+        try:
+            return Comment.objects.get(id=pk)
+        except:
+            raise Http404
+
+    def get(self, request, pk, format=False):
+        comment = self.get_object(pk)
+        serializer = CommentSerialization(comment, many=False)
+        return Response(serializer.data)
+
+    def put(self, request, pk, format=None):
+        comment = self.get_object(pk)
+        serializer = CommentSerialization(comment, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, format=None):
+        comment = self.get_object(pk)
+        serializer = CommentSerialization(
+            comment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk, format=False):
+        comment = self.get_object(pk)
+
+        comment.delete()
+
+        return Response('community deleted')
 
 
 @api_view(['GET'])
