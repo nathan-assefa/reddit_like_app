@@ -14,9 +14,9 @@ class Community(models.Model):
     updated_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    # owner = models.ForeignKey(
-    #     User, on_delete=models.CASCADE, related_name='communities_owened'
-    # )
+    owner = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='communities_owened'
+    )
 
     members = models.ManyToManyField(
         User, through='CommunityMembership', related_name='communities_joined'
@@ -115,14 +115,6 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.content
-    # def __str__(self):
-    #     if self.parent_comment is None:
-    #         # This is a top-level comment
-    #         related_comments = self.post.comments.all()
-    #         return f"Comment by {self.author} on Post: {self.post}, Total Comments: {related_comments.count()}"
-    #     else:
-    #         # This is a reply to another comment
-    #         return f"Reply by {self.author} on Post: {self.post}"
 
 
 class Profile(models.Model):
@@ -234,7 +226,7 @@ class PostLove(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} downvoted comment {self.post.id}"
+        return f"{self.user.username} reacted comment {self.post.id}"
 
 
 class PostUpvoted(models.Model):

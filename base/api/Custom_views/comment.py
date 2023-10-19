@@ -5,7 +5,10 @@ from rest_framework import status
 
 import random
 
-from .auth import IsAuthenticatedOrReadOnly
+from ..permissions.comment_auth import (
+    IsAuthenticatedUser,
+    IsCommnentOwner
+)
 from base.api.serializers import CommentSerialization
 from .notification_content import comment_notification_sentences
 from base.api.models import (
@@ -18,7 +21,7 @@ from base.api.models import (
 class CommentList(APIView):
     ''' Implementing get and post request for comments '''
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedUser]
 
     def get(self, request, post_id, format=None):
         # Get comments related to a specific post
@@ -33,11 +36,11 @@ class CommentList(APIView):
         except Post.DoesNotExist:
             return Response({'error': 'Post not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # add the post id in the request data
-        request.data['post'] = post_id
+        mutable_data = request.data.copy()
+        mutable_data['post'] = post_id
 
         serializer = CommentSerialization(
-            data=request.data, context={'request': request})
+            data=mutable_data, context={'request': request})
 
         if serializer.is_valid():
             # Set the post and author for the comment
@@ -95,7 +98,7 @@ class CommentList(APIView):
 class CommentDetail(APIView):
     ''' implementing get, put, and delete request '''
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsCommnentOwner]
 
     def get_object(self, pk):
         try:

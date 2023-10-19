@@ -10,9 +10,16 @@ from rest_framework import status
 from django.db.models import Q
 from django.contrib.auth.models import User
 
+from base.api.Custom_views.notifications import GetUserNotification
+from base.api.Custom_views.profile import GetUserProfile
+
 from base.api.Custom_views.community import (
     CommunityList,
     CommunityDetail,
+    CommunityListForOwnerOrMember,
+    TopCommunitiesView,
+    JoinOrLeaveCommunityView,
+    CommunityMembershipStatusView
 )
 
 from base.api.Custom_views.post import (
@@ -59,6 +66,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['username'] = user.username
+        token['notification_count'] = user.profile.unread_notifications_count
+        print(token['notification_count'])
 
         return token
 
@@ -177,6 +186,10 @@ class UpvotePost(APIView):
             existing_upvote.delete()
             upvoted = False
         else:
+            existing_downvote = PostDownvoted.objects.filter(
+                user=user, post=post).first()
+            if existing_downvote:
+                existing_downvote.delete()
             PostUpvoted.objects.create(user=user, post=post)
             upvoted = True
 
@@ -198,6 +211,10 @@ class DownvotePost(APIView):
             existing_downvote.delete()
             downvoted = False
         else:
+            existing_upvote = PostUpvoted.objects.filter(
+                user=user, post=post).first()
+            if existing_upvote:
+                existing_upvote.delete()
             PostDownvoted.objects.create(user=user, post=post)
             downvoted = True
 
@@ -332,7 +349,7 @@ class GetUserMessagesView(ListAPIView):
         #     (Q(sender=self.request.user) & Q(recipient_id=user_id))
         # )
 
-        '''
+        """
         If you're viewing a chat between "User A" and "User B," you want
         to see only messages sent between these two users. The condition
         ensures that messages are retrieved where the authenticated user
@@ -340,7 +357,7 @@ class GetUserMessagesView(ListAPIView):
         user ("User B") is the corresponding sender or recipient.
         This way, you're effectively filtering the messages to show only
         the conversation between "User A" and "User B."
-        '''
+        """
 
 
 class MarkMessageAsReadView(CreateAPIView):

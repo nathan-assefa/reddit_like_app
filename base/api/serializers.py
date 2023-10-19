@@ -6,36 +6,53 @@ from .models import (
     PostLike,
     Comment,
     BookMarks,
-    Messages
+    Messages,
+    Notifications,
+    Profile,
+    CommunityMembership
 )
 from django.contrib.auth.models import User
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = "__all__"
+
+
 class UserSerializer(ModelSerializer):
+    profile = ProfileSerializer(many=False, required=False)
+
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email']
+        fields = ['id', 'first_name', 'last_name', 'email', 'profile']
 
 
 class CommunitySerializer(ModelSerializer):
     members = UserSerializer(many=True, required=False)
     moderators = UserSerializer(many=True, required=False)
 
+    member_count = serializers.SerializerMethodField()
+
+    owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
     class Meta:
         model = Community
         fields = '__all__'
 
+    def get_member_count(self, obj):
+        return obj.members.count()
+
 
 class CommunityMembershipSerialzer(ModelSerializer):
-    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
     class Meta:
-        model = Community
+        model = CommunityMembership
         fields = "__all__"
 
 
 class CommentSerialization(ModelSerializer):
-    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    # author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    author = UserSerializer(many=False, required=False)
 
     class Meta:
         model = Comment
@@ -60,7 +77,7 @@ class PostSerialization(ModelSerializer):
     author = UserSerializer(many=False, read_only=True)
     community = CommunitySerializer(many=False, required=False)
 
-    comments = CommentSerialization(many=True, read_only=True)
+    # comments = CommentSerialization(many=True, read_only=True)
 
     class Meta:
         model = Post
@@ -113,3 +130,15 @@ class MarkMessageAsReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Messages
         fields = ('is_read',)
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notifications
+        fields = "__all__"
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = "__all__"

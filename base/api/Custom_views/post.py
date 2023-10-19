@@ -4,8 +4,11 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 
-from .auth import IsAuthenticatedOrReadOnly
-from base.api.serializers import PostSerialization, CommentSerialization
+from ..permissions.post_auth import IsCommunityMemberOrOwner, IsPostOwner
+from base.api.serializers import (
+    PostSerialization,
+    CommentSerialization
+)
 from .notification_content import post_notification_sentences
 from base.api.models import (
     Post,
@@ -15,7 +18,7 @@ from base.api.models import (
 
 
 class CommunityPostList(APIView):
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsCommunityMemberOrOwner]
 
     def get(self, request, community_id, format=None):
         # Filter posts by community_id
@@ -25,12 +28,21 @@ class CommunityPostList(APIView):
 
     def post(self, request, community_id, format=None):
         # Add the community_id to the request data before serializing
-        request.data['community'] = community_id
+        # request.data['community'] = community_id
+        # serializer = PostSerialization(
+        #     data=request.data, context={'request': request})
+
+        # if serializer.is_valid():
+        #     post = serializer.save(author=request.user)
+
+        mutable_data = request.data.copy()
+
         serializer = PostSerialization(
-            data=request.data, context={'request': request})
+            data=mutable_data, context={'request': request})
 
         if serializer.is_valid():
-            post = serializer.save(author=request.user)
+            post = serializer.save(author=request.user,
+                                   community_id=community_id)
 
             # Get the community for this post
             community = post.community
@@ -68,7 +80,7 @@ class CommunityPostList(APIView):
 class PostDetail(APIView):
     ''' implementing get, put, and delete request '''
 
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsPostOwner]
 
     def get_object(self, pk):
         try:
@@ -78,8 +90,15 @@ class PostDetail(APIView):
 
     def get(self, request, pk, format=False):
         post = self.get_object(pk)
-        serializer = PostSerialization(post)
-        return Response(serializer.data)
+        comments = Comment.objects.filter(
+            post=post).order_by('-created_at')
+        post_data = PostSerialization(post).data
+        post_data['comments'] = CommentSerialization(
+            comments, many=True).data
+        return Response(post_data)
+
+        # serializer = PostSerialization(post)
+        # return Response(serializer.data)
 
     def put(self, request, pk, format=None):
         post = self.get_object(pk)
@@ -112,8 +131,8 @@ class PostList(APIView):
 
     def get(self, request, format=None):
         posts = Post.objects.all()
+        posts = Post.objects.order_by('-created_at')
 
-        # Serialize each post and its comments in descending order by created_at
         serialized_posts = []
 
         for post in posts:

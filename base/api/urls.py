@@ -15,9 +15,17 @@ urlpatterns = [
 
     path('communities/', views.CommunityList.as_view()),
     path('communities/<int:pk>', views.CommunityDetail.as_view()),
+    path('communities/<int:user_id>/list/',
+         views.CommunityListForOwnerOrMember.as_view(), name='community-list-owner-member'),
+    path('top-communities/', views.TopCommunitiesView.as_view(),
+         name='top-communities'),
+    path('join_or_leave_community/<int:community_id>',
+         views.JoinOrLeaveCommunityView.as_view(), name='join-leave-community'),
+    path('get_membership_status/<int:community_id>',
+         views.CommunityMembershipStatusView.as_view(), name='community-membership-status'),
+
     path('communities/<int:community_id>/posts/',
          views.CommunityPostList.as_view(), name='community-post-list'),
-
     path('posts/', views.PostList.as_view()),
     path('posts/<int:pk>', views.PostDetail.as_view()),
     path('like_posts/<int:post_id>', views.LikePost.as_view()),
@@ -54,4 +62,10 @@ urlpatterns = [
 
     path('clear-unread-notifications/', views.ClearUnreadNotificationsCount.as_view(),
          name='clear_unread_notifications'),
+
+
+    path('notifications/', views.GetUserNotification.as_view(),
+         name="user_notifications"),
+
+    path('profile/', views.GetUserProfile.as_view(), name="user_profile")
 ]

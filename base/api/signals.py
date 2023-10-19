@@ -2,6 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import PostLike, CommentLike, Notifications
 from django.contrib.auth.models import User
+from .models import Community, CommunityMembership
 from .models import (
     PostLike,
     CommentLike,
@@ -15,6 +16,21 @@ from .models import (
     Messages,
     Profile
 )
+
+default_community_names = [
+    'e/CreativeArtistry',
+    'e/PetLoversHub',
+    'e/MovieMania',
+    'e/StartupJourney',
+    'e/GamingLegends',
+    'e/DataScienceExplorers',
+    'e/CodingNinjas',
+    'e/OutdoorAdventures',
+    'e/BookWormsParadise',
+    'e/PhotographyMasters',
+    'e/FoodiesUnite',
+    'e/TravelEnthusiasts',
+]
 
 
 def create_notification(sender, instance, created, notification_type, content_fn):
@@ -141,6 +157,9 @@ def save_user_profile(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Messages)
 def update_unread_message_count(sender, instance, created, **kwargs):
+    """
+    This function counts the the unread messages
+    """
     if created and instance.recipient != instance.sender:
         # Increment the unread_messages_count for the recipient's profile
         recipient_profile = instance.recipient.profile
@@ -150,8 +169,26 @@ def update_unread_message_count(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Notifications)
 def update_unread_notification_count(sender, instance, created, **kwargs):
+    """
+    This function increment the number of unread notifications
+    anytime a new notification is added to the Notification table
+    """
     if created:
         print(instance.recipient.username)
         recipient_profile = instance.recipient.profile
         recipient_profile.unread_notifications_count += 1
         recipient_profile.save()
+
+
+@receiver(post_save, sender=User)
+def user_post_save(sender, instance, created, **kwargs):
+    if created:
+        default_communities = Community.objects.filter(
+            name__in=default_community_names)
+
+        # Create CommunityMembership records for the user in default communities
+        print('top')
+        for community in default_communities:
+            print('bottom')
+            CommunityMembership.objects.create(
+                user=instance, community=community)
