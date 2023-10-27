@@ -59,13 +59,23 @@ urlpatterns = [
          views.MarkMessageAsReadView.as_view(), name='mark_message_as_read'),
     path('clear-unread-messages-count/', views.ClearUnreadMessagesCount.as_view(),
          name='clear_unread_message_count'),
+    path('most_recent_messages/', views.GetMostRecentMessageView.as_view(),
+         name='most_recent_messages'),
+
 
     path('clear-unread-notifications/', views.ClearUnreadNotificationsCount.as_view(),
          name='clear_unread_notifications'),
-
-
     path('notifications/', views.GetUserNotification.as_view(),
          name="user_notifications"),
+    path('mark-notification-as-read/<int:pk>',
+         views.MarkNotificationAsRead.as_view(), name='mark-notification-as-read'),
 
-    path('profile/', views.GetUserProfile.as_view(), name="user_profile")
+
+    path('profile/', views.GetUserProfile.as_view(), name="user_profile"),
+    path('profiles/', views.GetProfileList.as_view(), name='profile-list'),
+    path('update-profile/', views.UpdateProfile.as_view(), name='update_profile'),
+    path('toggle-follow/<int:user_id>',
+         views.ToggleFollowUserAPIView.as_view(), name='toggle-follow-user'),
+    path('follow-state/<int:user_id>',
+         views.FollowStateAPIView.as_view(), name='follow-state'),
 ]

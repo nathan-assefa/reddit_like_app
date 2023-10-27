@@ -54,10 +54,28 @@ class CommentSerialization(ModelSerializer):
     # author = serializers.HiddenField(default=serializers.CurrentUserDefault())
     author = UserSerializer(many=False, required=False)
 
+    voted_count = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    love_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
         fields = '__all__'
         ordering = ['-created_at']
+
+    def get_love_count(self, obj):
+        # Calculage and return the count of love reaction for the post
+        return obj.loves.count()
+
+    def get_like_count(self, obj):
+        # Calculate and return the count of likes for the post
+        return obj.likes.count()
+
+    def get_voted_count(self, obj):
+        # Calculate and return the count of upvoted comments minus downvoted comments
+        upvoted_count = obj.upvoted_by.count()
+        downvoted_count = obj.downvoted_by.count()
+        return upvoted_count - downvoted_count
 
 
 class PostSerialization(ModelSerializer):
@@ -125,6 +143,17 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Messages
         fields = "__all__"
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+
+        # Include the sender in the serialized data when retrieving messages
+        if request and not request.method == 'POST':
+            data['sender'] = UserSerializer(instance.sender).data
+            data['recipient'] = UserSerializer(instance.recipient).data
+
+        return data
+
 
 class MarkMessageAsReadSerializer(serializers.ModelSerializer):
     class Meta:
@@ -139,6 +168,42 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    # user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user = UserSerializer(many=False)
+
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Profile
         fields = "__all__"
+
+    def get_followers_count(self, obj):
+        # Calculate and return the count of comments for the post
+        return obj.followers.count()
+
+    def get_following_count(self, obj):
+        # Calculate and return the count of comments for the post
+        return obj.following.count()
+
+# class ProfileSerializer(serializers.ModelSerializer):
+#     user = UserSerializer(many=False)
+
+#     followers = serializers.SerializerMethodField()
+#     followers_count = serializers.SerializerMethodField()
+#     following_count = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Profile
+#         fields = "__all__"
+
+#     def get_followers(self, obj):
+#         # Serialize the followers' profiles
+#         followers = obj.followers.all()
+#         return ProfileSerializer(followers, many=True).data
+
+#     def get_followers_count(self, obj):
+#         return obj.followers.count()
+
+#     def get_following_count(self, obj):
+#         return obj.following.count()

@@ -52,12 +52,14 @@ class CommentList(APIView):
                 parent_comment_owner = parent_comment.author
 
                 # Notify the owner of the parent comment about the reply
-                Notifications.objects.create(
-                    recipient=parent_comment_owner,
-                    sender=request.user,
-                    notification_type="NewCommentReply",
-                    content=f'Your comment on "{post.title}" has a new reply by {request.user.username.capitalize()}. "{post.content}"'
-                )
+                if parent_comment_owner != request.user:
+                    Notifications.objects.create(
+                        recipient=parent_comment_owner,
+                        sender=request.user,
+                        notification_type="NewCommentReply",
+                        content=f'Your comment on "{post.title}" has a new reply by {request.user.username.capitalize()}. "{post.content}"',
+                        post_id=post_id
+                    )
 
             else:
                 # Get the community for this post
@@ -87,7 +89,8 @@ class CommentList(APIView):
                             recipient=member,
                             sender=request.user,
                             notification_type="NewComment",
-                            content=notification_content
+                            content=notification_content,
+                            post_id=post_id
                         )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)

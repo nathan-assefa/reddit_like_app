@@ -27,14 +27,6 @@ class CommunityPostList(APIView):
         return Response(serializer.data)
 
     def post(self, request, community_id, format=None):
-        # Add the community_id to the request data before serializing
-        # request.data['community'] = community_id
-        # serializer = PostSerialization(
-        #     data=request.data, context={'request': request})
-
-        # if serializer.is_valid():
-        #     post = serializer.save(author=request.user)
-
         mutable_data = request.data.copy()
 
         serializer = PostSerialization(
@@ -52,13 +44,13 @@ class CommunityPostList(APIView):
 
             # Create a notification for each community member
             for member in community_members:
-                # Make sure the creator of the post does not receive the notification
+                # Making sure the creator of the post does not receive the notification
                 if member != request.user:
                     # Randomly select a notification sentence
                     random_sentence = random.choice(
                         post_notification_sentences)
 
-                    # Replace placeholders with actual values
+                    # Replacing the placeholders
                     notification_content = random_sentence.format(
                         recipient=member.username.capitalize(),
                         sender=request.user.username.capitalize(),
@@ -71,6 +63,7 @@ class CommunityPostList(APIView):
                         sender=request.user,
                         notification_type="NewPost",
                         content=notification_content,
+                        post_id=post.id
                     )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)

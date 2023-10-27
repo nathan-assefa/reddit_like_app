@@ -33,7 +33,7 @@ default_community_names = [
 ]
 
 
-def create_notification(sender, instance, created, notification_type, content_fn):
+def create_notification(sender, instance, created, notification_type, content_fn, post_id):
     if created:
         recipient = None
         content = content_fn(instance)
@@ -59,6 +59,7 @@ def create_notification(sender, instance, created, notification_type, content_fn
                 sender=instance.user,
                 notification_type=notification_type,
                 content=content,
+                post_id=post_id
             )
 
 
@@ -71,7 +72,7 @@ def create_post_like_notification(sender, instance, created, **kwargs):
         return f"{post_like.user.username.capitalize()} has liked your post: '{post_like.post.content}'"
 
     create_notification(sender, instance, created,
-                        "PostLike", get_post_like_content)
+                        "PostLike", get_post_like_content, instance.post.id)
 
 
 @receiver(post_save, sender=PostLove)
@@ -80,7 +81,7 @@ def create_comment_love_notification(sender, instance, created, **kwargs):
         return f"{post_love.user.username.capitalize()} has reacted to your post: '{post_love.post.content}'"
 
     create_notification(sender, instance, created,
-                        "PostLove", get_post_love_content)
+                        "PostLove", get_post_love_content, instance.post.id)
 
 
 @receiver(post_save, sender=PostUpvoted)
@@ -89,7 +90,7 @@ def create_post_upvote_notification(sender, instance, created, **kwargs):
         return f"{post_upvote.user.username.capitalize()} has upvoted your post: '{post_upvote.post.content}'"
 
     create_notification(sender, instance, created,
-                        "PostUpvoted", get_post_upvote_content)
+                        "PostUpvoted", get_post_upvote_content, instance.post.id)
 
 
 @receiver(post_save, sender=PostDownvoted)
@@ -98,7 +99,7 @@ def create_post_downvote_notification(sender, instance, created, **kwargs):
         return f"{post_downvote.user.username.capitalize()} has downvoted your post: '{post_downvote.post.content}'"
 
     create_notification(sender, instance, created,
-                        "PostDownvoted", get_post_downvote_content)
+                        "PostDownvoted", get_post_downvote_content, instance.post.id)
 
 
 """ ****** This is to handle comment reactions ******** """
@@ -109,8 +110,9 @@ def create_comment_like_notification(sender, instance, created, **kwargs):
     def get_comment_like_content(comment_like):
         return f"{comment_like.user.username.capitalize()} has liked your comment: '{comment_like.comment.content}'"
 
+    post_id = instance.comment.post.id
     create_notification(sender, instance, created,
-                        "CommentLike", get_comment_like_content)
+                        "CommentLike", get_comment_like_content, post_id)
 
 
 @receiver(post_save, sender=CommentLove)
@@ -118,8 +120,9 @@ def create_comment_love_notification(sender, instance, created, **kwargs):
     def get_comment_love_content(comment_love):
         return f"{comment_love.user.username.capitalize()} has reacted to your comment: '{comment_love.comment.content}'"
 
+    post_id = instance.comment.post.id
     create_notification(sender, instance, created,
-                        "CommentLove", get_comment_love_content)
+                        "CommentLove", get_comment_love_content, post_id)
 
 
 @receiver(post_save, sender=CommentUpvoted)
@@ -127,8 +130,9 @@ def create_comment_upvote_notification(sender, instance, created, **kwargs):
     def get_comment_upvote_content(comment_upvote):
         return f"{comment_upvote.user.username.capitalize()} has upvoted your comment: '{comment_upvote.comment.content}'"
 
+    post_id = instance.comment.post.id
     create_notification(sender, instance, created,
-                        "CommentUpvoted", get_comment_upvote_content)
+                        "CommentUpvoted", get_comment_upvote_content, post_id)
 
 
 @receiver(post_save, sender=CommentDownvoted)
@@ -136,8 +140,9 @@ def create_comment_downvote_notification(sender, instance, created, **kwargs):
     def get_comment_downvote_content(comment_downvote):
         return f"{comment_downvote.user.username.capitalize()} has downvoted your comment: '{comment_downvote.comment.content}'"
 
+    post_id = instance.comment.post.id
     create_notification(sender, instance, created,
-                        "CommentDownvoted", get_comment_downvote_content)
+                        "CommentDownvoted", get_comment_downvote_content, post_id)
 
 # Create a profile for each new user
 

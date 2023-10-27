@@ -137,6 +137,9 @@ class Profile(models.Model):
 
     unread_notifications_count = models.IntegerField(default=0)
 
+    followers = models.ManyToManyField(
+        'self', symmetrical=False, related_name='following', blank=True)
+
     def __str__(self):
         return self.user.username
 
@@ -177,6 +180,7 @@ class Notifications(models.Model):
 
     notification_type = models.CharField(max_length=255)
     content = models.TextField()
+    post_id = models.PositiveIntegerField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
 

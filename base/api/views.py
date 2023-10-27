@@ -10,8 +10,25 @@ from rest_framework import status
 from django.db.models import Q
 from django.contrib.auth.models import User
 
-from base.api.Custom_views.notifications import GetUserNotification
-from base.api.Custom_views.profile import GetUserProfile
+from base.api.Custom_views.message import (
+    SendMessageView,
+    GetUserMessagesView,
+    MarkMessageAsReadView,
+    ClearUnreadMessagesCount,
+    GetMostRecentMessageView
+)
+
+from base.api.Custom_views.notifications import (
+    GetUserNotification,
+    MarkNotificationAsRead
+)
+from base.api.Custom_views.profile import (
+    GetUserProfile,
+    UpdateProfile,
+    ToggleFollowUserAPIView,
+    GetProfileList,
+    FollowStateAPIView
+)
 
 from base.api.Custom_views.community import (
     CommunityList,
@@ -35,14 +52,11 @@ from base.api.Custom_views.comment import (
 
 from .serializers import (
     BookMarksSerializer,
-    MessageSerializer,
-    MarkMessageAsReadSerializer
 )
 
 from .models import (
     Comment,
     BookMarks,
-    Messages,
     CommentLike,
     CommentLove,
     CommentUpvoted,
@@ -281,6 +295,10 @@ class UpvoteComment(APIView):
             existing_upvote.delete()
             upvoted = False
         else:
+            existing_downvote = CommentDownvoted.objects.filter(
+                user=user, comment=comment).first()
+            if existing_downvote:
+                existing_downvote.delete()
             CommentUpvoted.objects.create(user=user, comment=comment)
             upvoted = True
 
@@ -302,89 +320,14 @@ class DownvoteComment(APIView):
             existing_downvote.delete()
             downvoted = False
         else:
+            existing_upvote = CommentUpvoted.objects.filter(
+                user=user, comment=comment).first()
+            if existing_upvote:
+                existing_upvote.delete()
             CommentDownvoted.objects.create(user=user, comment=comment)
             downvoted = True
 
         return Response({'downvoted': downvoted}, status=status.HTTP_200_OK)
-
-
-""" Handling users messaging """
-
-
-class SendMessageView(CreateAPIView):
-    queryset = Messages.objects.first()
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        recipient_id = serializer.validated_data['recipient'].id
-
-        print("sender: ", self.request.user.username)
-        print("recipient: ", serializer.validated_data['recipient'].username)
-        # Check if the recipient is the same as the sender
-        if recipient_id == self.request.user.id:
-            return Response(
-                {'error': 'You cannot send a message to yourself.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        serializer.save(sender=self.request.user)
-
-
-class GetUserMessagesView(ListAPIView):
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        print(self.request.user.id)
-        user_id = self.kwargs['user_id']
-        # Retrieve messages sent to or received from the user
-        # this code is reponsible for fetching messages between two users.
-        return Messages.objects.filter(
-            recipient=self.request.user, sender_id=user_id
-        ) | Messages.objects.filter(
-            sender=self.request.user, recipient_id=user_id
-        )
-        # return Messages.objects.filter(
-        #     (Q(recipient=self.request.user) & Q(sender_id=user_id)) |
-        #     (Q(sender=self.request.user) & Q(recipient_id=user_id))
-        # )
-
-        """
-        If you're viewing a chat between "User A" and "User B," you want
-        to see only messages sent between these two users. The condition
-        ensures that messages are retrieved where the authenticated user
-        (you, "User A") is either the sender or the recipient and the other
-        user ("User B") is the corresponding sender or recipient.
-        This way, you're effectively filtering the messages to show only
-        the conversation between "User A" and "User B."
-        """
-
-
-class MarkMessageAsReadView(CreateAPIView):
-    queryset = Messages.objects.all()
-    serializer_class = MarkMessageAsReadSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        message_id = self.kwargs['message_id']
-        try:
-            message = Messages.objects.get(
-                pk=message_id, recipient=self.request.user
-            )
-        except Messages.DoesNotExist:
-            raise Http404
-        message.is_read = True
-        message.save()
-
-
-class ClearUnreadMessagesCount(APIView):
-    def post(self, request):
-        # Get the authenticated user or user ID from the session
-        user = request.user
-        # Update the unread_messages_count to zero
-        user.profile.unread_messages_count = 0
-        user.profile.save()
-        return Response({'message': 'Unread message count cleared.'}, status=status.HTTP_200_OK)
 
 
 class ClearUnreadNotificationsCount(APIView):
