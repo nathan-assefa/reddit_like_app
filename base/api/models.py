@@ -130,7 +130,7 @@ class Profile(models.Model):
     bio = models.TextField(null=True, blank=True)
     website = models.URLField(max_length=200, blank=True, null=True)
     location = models.CharField(max_length=100, blank=True, null=True)
-    birthdate = models.DateField(null=True, blank=True)
+    # birthdate = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
 
     unread_messages_count = models.IntegerField(default=0)

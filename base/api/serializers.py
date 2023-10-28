@@ -54,6 +54,11 @@ class CommentSerialization(ModelSerializer):
     # author = serializers.HiddenField(default=serializers.CurrentUserDefault())
     author = UserSerializer(many=False, required=False)
 
+    upvoted_by = UserSerializer(many=True, read_only=True, required=False)
+    downvoted_by = UserSerializer(many=True, read_only=True, required=False)
+    likes = UserSerializer(many=True, read_only=True, required=False)
+    loves = UserSerializer(many=True, read_only=True, required=False)
+
     voted_count = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     love_count = serializers.SerializerMethodField()
