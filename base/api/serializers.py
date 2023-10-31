@@ -179,6 +179,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
 
+    bookmarks = serializers.SerializerMethodField()
+
     class Meta:
         model = Profile
         fields = "__all__"
@@ -191,24 +193,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         # Calculate and return the count of comments for the post
         return obj.following.count()
 
-# class ProfileSerializer(serializers.ModelSerializer):
-#     user = UserSerializer(many=False)
-
-#     followers = serializers.SerializerMethodField()
-#     followers_count = serializers.SerializerMethodField()
-#     following_count = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = Profile
-#         fields = "__all__"
-
-#     def get_followers(self, obj):
-#         # Serialize the followers' profiles
-#         followers = obj.followers.all()
-#         return ProfileSerializer(followers, many=True).data
-
-#     def get_followers_count(self, obj):
-#         return obj.followers.count()
-
-#     def get_following_count(self, obj):
-#         return obj.following.count()
+    def get_bookmarks(self, obj):
+        # Retrieve all bookmarks for the associated user
+        user = obj.user
+        bookmarks = BookMarks.objects.filter(user=user)
+        bookmark_data = BookMarksSerializer(bookmarks, many=True).data
+        return bookmark_data

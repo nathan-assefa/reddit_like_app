@@ -10,12 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
+import cloudinary_storage
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-from datetime import timedelta
 
 
 # Quick-start development settings - unsuitable for production
@@ -49,6 +49,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
 
     'corsheaders',
+
+    'cloudinary',
+
+    'cloudinary_storage'
 ]
 
 REST_FRAMEWORK = {
@@ -188,3 +192,11 @@ CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = [
 #     'http://localhost:5173',
 # ]
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dn9ijmxfz',
+    'API_KEY': '343751236896724',
+    'API_SECRET': '97SKDmBVwvg3W_RKuyY-afH4yEE',
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

@@ -75,6 +75,10 @@ class Post(models.Model):
         User, through='PostLove', related_name='loved_posts', blank=True
     )
 
+    post_picture = models.ImageField(
+        upload_to='post_pictures/', blank=True, null=True
+    )
+
     def __str__(self):
         return self.title
 
